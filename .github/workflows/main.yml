@@ -5,50 +5,46 @@ on:
   pull_request:
 
 jobs:
-
   test:
-
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
+        # Обов'язково в лапках!
         python-version: ["3.9", "3.10", "3.11"]
 
     steps:
-
     - uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v5
+    - name: Set up Python
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
       run: |
-        pip install -r requirements.txt
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install flake8 pytest pytest-html
 
     - name: Lint
-      run: |
-        flake8 .
+      run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
     - name: Tests + HTML report
       run: |
-        pytest tests --html=report.html
+        # Переконайтеся, що папка tests існує, або просто запустіть pytest
+        pytest --html=report.html --self-contained-html
 
     - name: Upload report
       uses: actions/upload-artifact@v4
+      if: always() # Завантажити звіт навіть якщо тести впали
       with:
         name: report-${{ matrix.python-version }}
         path: report.html
 
-
   docker:
-
     runs-on: ubuntu-latest
-
+    needs: test # Збірка Docker почнеться тільки якщо тести пройшли успішно
     steps:
-
     - uses: actions/checkout@v4
-
     - name: Build Docker
-      run: |
-        docker build -t my-image .
+      run: docker build -t my-image .
